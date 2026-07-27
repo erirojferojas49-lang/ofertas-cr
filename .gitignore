@@ -1,4 +1,4 @@
-# Variables de entorno
+# Variables de entorno (¡CRUCIAL!)
 .env
 .env.local
 .env.*.local
