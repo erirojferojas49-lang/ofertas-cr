@@ -1,79 +1,38 @@
 """
-PRUEBA COMPLETA DEL SISTEMA - VERSIÓN DEFINITIVA
-Copia y pega este archivo completo sin modificar nada
+PRUEBA COMPLETA DEL SISTEMA - VERSIÓN CON URL DIRECTA
 """
 
 import os
 import sys
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
 
 # ============================================================
-# PASO 1: Forzar la URL de Supabase directamente
+# URL DE SUPABASE - ESCRITA DIRECTAMENTE AQUÍ
 # ============================================================
 SUPABASE_URL = "postgresql://postgres:mzx7ywCwZzehzqMfA@db.ynciugrecldpgrnklazq.supabase.co:5432/postgres"
-os.environ['SUPABASE_URL'] = SUPABASE_URL
 
 print("=" * 60)
 print("🚀 INICIANDO PRUEBA DEL SISTEMA OFERTAS CR")
 print("=" * 60)
 
 # ============================================================
-# PASO 2: Importar los módulos necesarios
-# ============================================================
-try:
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-    from sqlalchemy import text
-    print("✅ SQLAlchemy importado correctamente")
-except ImportError as e:
-    print(f"❌ Error: No se pudo importar SQLAlchemy. Instálalo con: pip install sqlalchemy")
-    sys.exit(1)
-
-try:
-    import psycopg2
-    print("✅ Psycopg2 importado correctamente")
-except ImportError as e:
-    print(f"❌ Error: No se pudo importar psycopg2. Instálalo con: pip install psycopg2-binary")
-    sys.exit(1)
-
-# ============================================================
-# PASO 3: Conectar a la base de datos
+# CONECTAR A SUPABASE
 # ============================================================
 print("\n📡 Conectando a Supabase...")
 
 try:
-    # Probar conexión directa con psycopg2
-    conn = psycopg2.connect(SUPABASE_URL)
-    cursor = conn.cursor()
-    cursor.execute("SELECT version();")
-    version = cursor.fetchone()
-    print(f"✅ Conexión exitosa a Supabase")
-    print(f"📦 PostgreSQL versión: {version[0][:30]}...")
-    cursor.close()
-    conn.close()
-except Exception as e:
-    print(f"❌ ERROR DE CONEXIÓN: {e}")
-    print("\n🔧 Soluciones posibles:")
-    print("   1. Verifica que la contraseña sea correcta")
-    print("   2. Verifica que el proyecto esté activo en Supabase")
-    print("   3. Espera 1 minuto y vuelve a intentar")
-    sys.exit(1)
-
-# ============================================================
-# PASO 4: Crear la sesión de SQLAlchemy
-# ============================================================
-print("\n🔧 Configurando SQLAlchemy...")
-
-try:
+    # Crear el motor de SQLAlchemy
     engine = create_engine(SUPABASE_URL)
     Session = sessionmaker(bind=engine)
     session = Session()
-    print("✅ SQLAlchemy configurado correctamente")
+    print("✅ Conexión exitosa a Supabase")
 except Exception as e:
-    print(f"❌ Error configurando SQLAlchemy: {e}")
+    print(f"❌ Error de conexión: {e}")
     sys.exit(1)
 
 # ============================================================
-# PASO 5: Verificar o crear la tienda "ekono"
+# VERIFICAR TIENDA 'ekono'
 # ============================================================
 print("\n🏪 Verificando tienda 'ekono'...")
 
@@ -93,16 +52,15 @@ try:
         session.commit()
         print("✅ Tienda 'ekono' creada exitosamente")
         
-        # Obtener el ID de la tienda recién creada
         result = session.execute(text("SELECT id FROM tiendas WHERE nombre = 'ekono'"))
         tienda_id = result.fetchone()[0]
 except Exception as e:
-    print(f"❌ Error verificando/creando tienda: {e}")
+    print(f"❌ Error verificando tienda: {e}")
     session.rollback()
     sys.exit(1)
 
 # ============================================================
-# PASO 6: Crear un producto de prueba
+# CREAR PRODUCTO DE PRUEBA
 # ============================================================
 print("\n📦 Creando producto de prueba...")
 
@@ -126,7 +84,6 @@ try:
         session.commit()
         print("✅ Producto de prueba creado exitosamente")
         
-        # Obtener el ID del producto
         result = session.execute(
             text("SELECT id FROM productos WHERE codigo_fabricante = 'TEST-001'")
         )
@@ -137,12 +94,12 @@ except Exception as e:
     sys.exit(1)
 
 # ============================================================
-# PASO 7: Guardar un precio de prueba
+# GUARDAR PRECIO DE PRUEBA
 # ============================================================
 print("\n💰 Guardando precio de prueba...")
 
 try:
-    # Verificar si ya existe un precio para este producto y tienda
+    # Verificar si ya existe un precio
     result = session.execute(
         text("""
             SELECT id FROM precios 
@@ -184,7 +141,7 @@ except Exception as e:
     sys.exit(1)
 
 # ============================================================
-# PASO 8: Verificar los datos guardados
+# VERIFICAR DATOS GUARDADOS
 # ============================================================
 print("\n🔍 Verificando datos guardados...")
 
@@ -224,7 +181,7 @@ except Exception as e:
     print(f"❌ Error verificando datos: {e}")
 
 # ============================================================
-# PASO 9: Cerrar sesión y finalizar
+# FINALIZAR
 # ============================================================
 session.close()
 print("\n✅ PRUEBA COMPLETADA EXITOSAMENTE!")
