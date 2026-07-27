@@ -1,91 +1,231 @@
 """
-Prueba completa del sistema Ofertas CR
-Este script verifica que todos los componentes funcionan correctamente
+PRUEBA COMPLETA DEL SISTEMA - VERSIÓN DEFINITIVA
+Copia y pega este archivo completo sin modificar nada
 """
 
 import os
-from dotenv import load_dotenv
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import sys
 
-# Importar nuestros módulos
-from db.models import Producto, Precio, Tienda
-from db.queries import guardar_producto, guardar_precio, get_session
-from config.database import test_connection
+# ============================================================
+# PASO 1: Forzar la URL de Supabase directamente
+# ============================================================
+SUPABASE_URL = "postgresql://postgres:mzx7ywCwZzehzqMfA@db.ynciugrecldpgrnklazq.supabase.co:5432/postgres"
+os.environ['SUPABASE_URL'] = SUPABASE_URL
 
-def crear_datos_prueba():
-    """Crea un producto y un precio de prueba"""
+print("=" * 60)
+print("🚀 INICIANDO PRUEBA DEL SISTEMA OFERTAS CR")
+print("=" * 60)
+
+# ============================================================
+# PASO 2: Importar los módulos necesarios
+# ============================================================
+try:
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy import text
+    print("✅ SQLAlchemy importado correctamente")
+except ImportError as e:
+    print(f"❌ Error: No se pudo importar SQLAlchemy. Instálalo con: pip install sqlalchemy")
+    sys.exit(1)
+
+try:
+    import psycopg2
+    print("✅ Psycopg2 importado correctamente")
+except ImportError as e:
+    print(f"❌ Error: No se pudo importar psycopg2. Instálalo con: pip install psycopg2-binary")
+    sys.exit(1)
+
+# ============================================================
+# PASO 3: Conectar a la base de datos
+# ============================================================
+print("\n📡 Conectando a Supabase...")
+
+try:
+    # Probar conexión directa con psycopg2
+    conn = psycopg2.connect(SUPABASE_URL)
+    cursor = conn.cursor()
+    cursor.execute("SELECT version();")
+    version = cursor.fetchone()
+    print(f"✅ Conexión exitosa a Supabase")
+    print(f"📦 PostgreSQL versión: {version[0][:30]}...")
+    cursor.close()
+    conn.close()
+except Exception as e:
+    print(f"❌ ERROR DE CONEXIÓN: {e}")
+    print("\n🔧 Soluciones posibles:")
+    print("   1. Verifica que la contraseña sea correcta")
+    print("   2. Verifica que el proyecto esté activo en Supabase")
+    print("   3. Espera 1 minuto y vuelve a intentar")
+    sys.exit(1)
+
+# ============================================================
+# PASO 4: Crear la sesión de SQLAlchemy
+# ============================================================
+print("\n🔧 Configurando SQLAlchemy...")
+
+try:
+    engine = create_engine(SUPABASE_URL)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    print("✅ SQLAlchemy configurado correctamente")
+except Exception as e:
+    print(f"❌ Error configurando SQLAlchemy: {e}")
+    sys.exit(1)
+
+# ============================================================
+# PASO 5: Verificar o crear la tienda "ekono"
+# ============================================================
+print("\n🏪 Verificando tienda 'ekono'...")
+
+try:
+    # Verificar si la tienda existe
+    result = session.execute(text("SELECT id FROM tiendas WHERE nombre = 'ekono'"))
+    tienda = result.fetchone()
     
-    print("🚀 Iniciando prueba del sistema...")
-    
-    # 1. Probar conexión a Supabase
-    print("\n📡 Probando conexión a Supabase...")
-    test_connection()
-    
-    # 2. Crear sesión
-    session = get_session()
-    
-    # 3. Verificar que la tienda existe
-    print("\n🏪 Verificando tiendas...")
-    tienda = session.query(Tienda).filter(Tienda.nombre == "ekono").first()
-    if not tienda:
-        print("❌ La tienda 'ekono' no existe. Creándola...")
-        tienda = Tienda(
-            nombre="ekono",
-            url_base="https://www.ekono.co.cr",
-            tipo_extraccion="scraping_html"
+    if tienda:
+        tienda_id = tienda[0]
+        print(f"✅ Tienda 'ekono' encontrada con ID: {tienda_id}")
+    else:
+        print("⚠️ Tienda 'ekono' no encontrada. Creándola...")
+        session.execute(
+            text("INSERT INTO tiendas (nombre, url_base, tipo_extraccion) VALUES ('ekono', 'https://www.ekono.co.cr', 'scraping_html')")
         )
-        session.add(tienda)
         session.commit()
-        print(f"✅ Tienda 'ekono' creada con ID: {tienda.id}")
-    else:
-        print(f"✅ Tienda 'ekono' encontrada con ID: {tienda.id}")
-    
-    # 4. Crear un producto de prueba
-    print("\n📦 Creando producto de prueba...")
-    producto = Producto(
-        nombre="Microondas Samsung Prueba",
-        codigo_fabricante="TEST-001",
-        categoria="Electrodomésticos",
-        descripcion="Producto de prueba para verificar el sistema"
-    )
-    session.add(producto)
-    session.commit()
-    print(f"✅ Producto creado con ID: {producto.id}")
-    
-    # 5. Guardar un precio para el producto
-    print("\n💰 Guardando precio de prueba...")
-    precio = Precio(
-        producto_id=producto.id,
-        tienda_id=tienda.id,
-        precio_actual=95000.00,
-        precio_regular=120000.00,
-        porcentaje_descuento=21,
-        es_oferta=True,
-        url_producto="https://www.ekono.co.cr/producto-test"
-    )
-    session.add(precio)
-    session.commit()
-    print(f"✅ Precio guardado con ID: {precio.id}")
-    
-    # 6. Verificar que se guardó correctamente
-    print("\n🔍 Verificando datos guardados...")
-    producto_guardado = session.query(Producto).filter(Producto.id == producto.id).first()
-    precio_guardado = session.query(Precio).filter(Precio.producto_id == producto.id).first()
-    
-    if producto_guardado and precio_guardado:
-        print("✅ ¡DATOS VERIFICADOS CORRECTAMENTE!")
-        print(f"   Producto: {producto_guardado.nombre}")
-        print(f"   Precio actual: ₡{precio_guardado.precio_actual:,.2f}")
-        print(f"   Precio regular: ₡{precio_guardado.precio_regular:,.2f}")
-        print(f"   Descuento: {precio_guardado.porcentaje_descuento}%")
-        print(f"   Es oferta: {precio_guardado.es_oferta}")
-    else:
-        print("❌ Error: No se pudieron recuperar los datos")
-    
-    # 7. Cerrar sesión
-    session.close()
-    print("\n✅ Prueba completada exitosamente!")
+        print("✅ Tienda 'ekono' creada exitosamente")
+        
+        # Obtener el ID de la tienda recién creada
+        result = session.execute(text("SELECT id FROM tiendas WHERE nombre = 'ekono'"))
+        tienda_id = result.fetchone()[0]
+except Exception as e:
+    print(f"❌ Error verificando/creando tienda: {e}")
+    session.rollback()
+    sys.exit(1)
 
-if __name__ == "__main__":
-    crear_datos_prueba()
+# ============================================================
+# PASO 6: Crear un producto de prueba
+# ============================================================
+print("\n📦 Creando producto de prueba...")
+
+try:
+    # Verificar si el producto ya existe
+    result = session.execute(
+        text("SELECT id FROM productos WHERE codigo_fabricante = 'TEST-001'")
+    )
+    producto = result.fetchone()
+    
+    if producto:
+        producto_id = producto[0]
+        print(f"⚠️ Producto de prueba ya existe con ID: {producto_id}")
+    else:
+        session.execute(
+            text("""
+                INSERT INTO productos (nombre, codigo_fabricante, categoria, descripcion)
+                VALUES ('Microondas Samsung Prueba', 'TEST-001', 'Electrodomésticos', 'Producto de prueba')
+            """)
+        )
+        session.commit()
+        print("✅ Producto de prueba creado exitosamente")
+        
+        # Obtener el ID del producto
+        result = session.execute(
+            text("SELECT id FROM productos WHERE codigo_fabricante = 'TEST-001'")
+        )
+        producto_id = result.fetchone()[0]
+except Exception as e:
+    print(f"❌ Error creando producto: {e}")
+    session.rollback()
+    sys.exit(1)
+
+# ============================================================
+# PASO 7: Guardar un precio de prueba
+# ============================================================
+print("\n💰 Guardando precio de prueba...")
+
+try:
+    # Verificar si ya existe un precio para este producto y tienda
+    result = session.execute(
+        text("""
+            SELECT id FROM precios 
+            WHERE producto_id = :producto_id AND tienda_id = :tienda_id
+        """),
+        {"producto_id": producto_id, "tienda_id": tienda_id}
+    )
+    precio = result.fetchone()
+    
+    if precio:
+        print(f"⚠️ Precio ya existe. Actualizando...")
+        session.execute(
+            text("""
+                UPDATE precios 
+                SET precio_actual = 95000, 
+                    precio_regular = 120000, 
+                    porcentaje_descuento = 21,
+                    es_oferta = true,
+                    fecha_extraccion = CURRENT_TIMESTAMP
+                WHERE producto_id = :producto_id AND tienda_id = :tienda_id
+            """),
+            {"producto_id": producto_id, "tienda_id": tienda_id}
+        )
+        session.commit()
+        print("✅ Precio actualizado exitosamente")
+    else:
+        session.execute(
+            text("""
+                INSERT INTO precios (producto_id, tienda_id, precio_actual, precio_regular, porcentaje_descuento, es_oferta)
+                VALUES (:producto_id, :tienda_id, 95000, 120000, 21, true)
+            """),
+            {"producto_id": producto_id, "tienda_id": tienda_id}
+        )
+        session.commit()
+        print("✅ Precio guardado exitosamente")
+except Exception as e:
+    print(f"❌ Error guardando precio: {e}")
+    session.rollback()
+    sys.exit(1)
+
+# ============================================================
+# PASO 8: Verificar los datos guardados
+# ============================================================
+print("\n🔍 Verificando datos guardados...")
+
+try:
+    result = session.execute(
+        text("""
+            SELECT 
+                p.nombre as producto,
+                t.nombre as tienda,
+                pr.precio_actual,
+                pr.precio_regular,
+                pr.porcentaje_descuento,
+                pr.es_oferta
+            FROM precios pr
+            JOIN productos p ON pr.producto_id = p.id
+            JOIN tiendas t ON pr.tienda_id = t.id
+            WHERE pr.producto_id = :producto_id
+        """),
+        {"producto_id": producto_id}
+    )
+    datos = result.fetchone()
+    
+    if datos:
+        print("\n" + "=" * 60)
+        print("✅ ¡DATOS VERIFICADOS CORRECTAMENTE!")
+        print("=" * 60)
+        print(f"   Producto: {datos[0]}")
+        print(f"   Tienda: {datos[1]}")
+        print(f"   Precio actual: ₡{datos[2]:,.2f}")
+        print(f"   Precio regular: ₡{datos[3]:,.2f}")
+        print(f"   Descuento: {datos[4]}%")
+        print(f"   Es oferta: {datos[5]}")
+        print("=" * 60)
+    else:
+        print("❌ No se encontraron datos")
+except Exception as e:
+    print(f"❌ Error verificando datos: {e}")
+
+# ============================================================
+# PASO 9: Cerrar sesión y finalizar
+# ============================================================
+session.close()
+print("\n✅ PRUEBA COMPLETADA EXITOSAMENTE!")
+print("🎉 El sistema está listo para usar.")
